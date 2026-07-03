@@ -1,4 +1,4 @@
-# Monte Carlo on Unbeatable Roullete Strategy
+# Monte Carlo vs Unbeatable Roullete Strategy
 
 <img width="600" alt="ChatGPT Image Jul 3, 2026" src="https://github.com/user-attachments/assets/33fc0a9b-f7dc-423a-ab90-796f6f88fdc2" />
 
@@ -25,33 +25,45 @@ After 11 consecutive losing bets, the player would reach a bet size of 89 units,
 ### 1. Choosing columns over dozens because they feel more spread out across the number range
 The strategy suggests choosing columns instead of dozens because columns appear to contain a wider mixture of high and low numbers. However, this reasoning is mathematically misleading.
 
+<table>
+  <tr>
+    <td>
+      <img width="400" alt="ChatGPT Image Jul 3, 2026, 06_09_19 PM" src="https://github.com/user-attachments/assets/168fb5a6-7a46-4661-8609-93eed7e217d1" />
+    </td>
+    <td>
+      <img width="400" alt="ChatGPT Image Jul 3, 2026, 06_13_35 PM" src="https://github.com/user-attachments/assets/92beb9cd-c615-47aa-b639-4794953fc6a5" />
+    </td>
+  </tr>
+</table>
+
 In American roulette, there are 38 pockets in total: numbers 1–36, 0, and 00. Each column contains 12 numbers, and each dozen also contains 12 numbers. Although the numbers may appear grouped differently on the betting table, their visual position on the layout does not affect the outcome of the spin.
+
+<table>
+  <tr>
+    <td>
+      <img height="300" alt="ChatGPT Image Jul 3, 2026, 07_42_50 PM" src="https://github.com/user-attachments/assets/e8ecb5f7-0e1f-4bf8-a1a9-444af34416c4" />
+    </td>
+    <td>
+      <img height="300" alt="ChatGPT Image Jul 3, 2026, 07_36_09 PM" src="https://github.com/user-attachments/assets/ddb984c5-e30c-4c2a-9851-feb1ca052020" />
+    </td>
+  </tr>
+</table>
 
 The winning outcome is determined by where the spinning ball lands on the wheel. On a fair roulette wheel, each pocket has an equal chance of being selected. Therefore, the probability of landing on any single number is:
 
-[
-P(\text{single number}) = \frac{1}{38}
-]
+$P(\text{single number}) = \frac{1}{38}$
 
 Since a column or dozen covers 12 different numbers, the probability of winning is found by adding the probabilities of those 12 individual numbers. This is why the probability is multiplied by 12:
 
-[
-P(\text{column}) = 12 \times \frac{1}{38}
-]
+$P(\text{column}) = 12 \times \frac{1}{38}$
 
-[
-P(\text{column}) = \frac{12}{38} \approx 31.58%
-]
+$P(\text{column}) = \frac{12}{38} \approx 31.58\%$
 
 The same applies to dozens because each dozen also contains 12 numbers:
 
-[
-P(\text{dozen}) = 12 \times \frac{1}{38}
-]
+$P(\text{dozen}) = 12 \times \frac{1}{38}$
 
-[
-P(\text{dozen}) = \frac{12}{38} \approx 31.58%
-]
+$P(\text{dozen}) = \frac{12}{38} \approx 31.58\%$
 
 Therefore, choosing columns over dozens does not provide any mathematical advantage. Both bets cover the same number of pockets and have the same probability of winning. The claim that columns are better because they offer a “wider range of number exposure” is based on visual appearance rather than probability.
 
