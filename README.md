@@ -122,11 +122,11 @@ This negative expected value applies to most standard American roulette bets. Ev
 | Column                        |              12 |  12/38 = 31.58% |   26/38 = 68.42% |    2:1 |         −5.26% |
 | Red/Black, Odd/Even, High/Low |              18 |  18/38 = 47.37% |   20/38 = 52.63% |    1:1 |         −5.26% |
 
-This shows that choosing a 2:1 bet does not remove the casino’s edge. The player may win more often on columns or dozens than on straight-up numbers, but the payout is lower to compensate for the higher probability of winning.
+This shows that choosing a 2:1 bet exclusively does not yeild an edge for the player. The player may win more often on columns or dozens than on straight-up numbers, but the payout is lower to compensate for the higher probability of winning.
 
 For example, a straight-up bet has a low chance of winning but a high payout of 35:1. A column bet has a higher chance of winning but only pays 2:1. In both cases, the expected value remains negative.
 
-The Fibonacci system also does not change this expected value. It only changes the size and timing of the bets. Increasing the stake after losses may make short-term recovery seem more likely, but it does not change the probability of each spin or the house edge. Instead, it increases variance, meaning the player may experience many small wins but still faces the risk of a large loss when a long losing streak occurs. This issue will be discussed later in the analysis.
+The Fibonacci system does not change the expected value of roulette. It only changes the size and timing of the bets. Each spin still has the same probability of winning or losing, and the house edge remains unchanged. However, the system does affect the **variance** of the player’s results by creating a pattern of many small wins or recoveries, while still exposing the player to the risk of occasional large losses. This will be discussed later in the analysis.
 
 ### 3 
 each trade is independant of one another
