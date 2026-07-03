@@ -70,20 +70,63 @@ Therefore, choosing columns over dozens does not provide any mathematical advant
 
 
 
-### 2 to 1 profit . 4/1 still the same
+### 2. Selecting 2:1 payout only does not yield an advantage
+The strategy focuses on dozens and columns because they pay out at 2:1. At first, this may appear attractive because a winning bet returns twice the stake as profit. However, the payout alone does not determine whether a bet is profitable. To evaluate a roulette bet properly, the **expected value** must be calculated.
 
-| Bet | Payout | EV per 1 unit | Expected loss |
-| --- | --- | --- | --- |
-| Straight up | 35:1 | **−0.0270** | **−2.70%** |
-| Split | 17:1 | **−0.0270** | **−2.70%** |
-| Street / Trio | 11:1 | **−0.0270** | **−2.70%** |
-| Corner / First four | 8:1 | **−0.0270** | **−2.70%** |
-| Six line | 5:1 | **−0.0270** | **−2.70%** |
-| Dozen | 2:1 | **−0.0270** | **−2.70%** |
-| Column | 2:1 | **−0.0270** | **−2.70%** |
-| Red/Black, Odd/Even, High/Low | 1:1 | **−0.0270** | **−2.70%** |
+Expected value measures the average profit or loss a player can expect per bet over the long run. It is calculated by multiplying each possible outcome by its probability.
 
-fibonachio but this can be argued with variance of trade which would be discuessedlater 
+For a 1-unit column or dozen bet in American roulette:
+
+$$
+P(\text{win}) = \frac{12}{38}
+$$
+
+$$
+P(\text{lose}) = \frac{26}{38}
+$$
+
+A winning column or dozen bet earns 2 units of profit, while a losing bet loses 1 unit. Therefore, the expected value is:
+
+$$
+EV = \left(\frac{12}{38} \times 2\right) - \left(\frac{26}{38} \times 1\right)
+$$
+
+$$
+EV = \frac{24}{38} - \frac{26}{38}
+$$
+
+$$
+EV = -\frac{2}{38}
+$$
+
+$$
+EV \approx -0.0526
+$$
+
+This means that for every 1 unit bet, the player is expected to lose approximately 0.0526 units in the long run. In percentage terms, this is an expected loss of:
+
+$$
+-5.26\%
+$$
+
+This negative expected value applies to most standard American roulette bets. Even though different bets have different payouts, the probabilities and payouts are structured so that the casino keeps the same long-term advantage of approximately 5.26%.
+
+| Bet type                      | Numbers covered | Win probability | Lose probability | Payout | Expected value |
+| ----------------------------- | --------------: | --------------: | ---------------: | -----: | -------------: |
+| Straight up                   |               1 |    1/38 = 2.63% |   37/38 = 97.37% |   35:1 |         −5.26% |
+| Split                         |               2 |    2/38 = 5.26% |   36/38 = 94.74% |   17:1 |         −5.26% |
+| Street / Trio                 |               3 |    3/38 = 7.89% |   35/38 = 92.11% |   11:1 |         −5.26% |
+| Corner                        |               4 |   4/38 = 10.53% |   34/38 = 89.47% |    8:1 |         −5.26% |
+| Six line                      |               6 |   6/38 = 15.79% |   32/38 = 84.21% |    5:1 |         −5.26% |
+| Dozen                         |              12 |  12/38 = 31.58% |   26/38 = 68.42% |    2:1 |         −5.26% |
+| Column                        |              12 |  12/38 = 31.58% |   26/38 = 68.42% |    2:1 |         −5.26% |
+| Red/Black, Odd/Even, High/Low |              18 |  18/38 = 47.37% |   20/38 = 52.63% |    1:1 |         −5.26% |
+
+This shows that choosing a 2:1 bet does not remove the casino’s edge. The player may win more often on columns or dozens than on straight-up numbers, but the payout is lower to compensate for the higher probability of winning.
+
+For example, a straight-up bet has a low chance of winning but a high payout of 35:1. A column bet has a higher chance of winning but only pays 2:1. In both cases, the expected value remains negative.
+
+The Fibonacci system also does not change this expected value. It only changes the size and timing of the bets. Increasing the stake after losses may make short-term recovery seem more likely, but it does not change the probability of each spin or the house edge. Instead, it increases variance, meaning the player may experience many small wins but still faces the risk of a large loss when a long losing streak occurs. This issue will be discussed later in the analysis.
 
 ### 3 
 each trade is independant of one another
