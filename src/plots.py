@@ -6,137 +6,315 @@ import pandas as pd
 import seaborn as sns
 
 from simulate import (
-    run_monte_carlo,
     simulate_fibonacci_with_max_recovery_session,
     simulate_fibonacci_session,
     simulate_flat_session,
     simulate_flat_vs_fibonacci_session,
 )
 from strategy import (
-    AMERICAN_ROULETTE_POCKETS,
-    COLUMN_POCKETS,
     COLUMN_WIN_PROBABILITY,
     RouletteConfig,
-    american_bet_type_rows,
-    break_even_probability_for_2_to_1,
     column_expected_value_units,
+    fibonacci_sequence,
 )
 
 
 sns.set_theme(style="whitegrid")
 
 
-def save_probability_plot(path: str = "outputs/column_probability.png") -> None:
-    losing_pockets = AMERICAN_ROULETTE_POCKETS - COLUMN_POCKETS
-    data = pd.DataFrame(
-        {
-            "Outcome": ["Chosen column wins", "Chosen column loses"],
-            "Pockets": [COLUMN_POCKETS, losing_pockets],
-            "Probability": [COLUMN_WIN_PROBABILITY, losing_pockets / AMERICAN_ROULETTE_POCKETS],
-        }
+def save_fibonacci_final_bankroll_distribution_plot(
+    path: str = "outputs/fibonacci_final_bankroll_distribution.png",
+    sessions: int = 10000,
+    spins: int = 120,
+    seed: int = 42,
+) -> None:
+    config = RouletteConfig(spins=spins)
+    rng = np.random.default_rng(seed)
+    final_bankrolls = []
+
+    for _ in range(sessions):
+        session = simulate_fibonacci_session(config, rng)
+        if session.empty:
+            final_bankroll_units = config.starting_bankroll_units
+        else:
+            final_bankroll_units = session["bankroll_units"].iloc[-1]
+        final_bankrolls.append(final_bankroll_units * config.unit_size)
+
+    final_bankrolls = np.array(final_bankrolls)
+    mean_final = float(np.mean(final_bankrolls))
+    median_final = float(np.median(final_bankrolls))
+    ruin_rate = float(np.mean(final_bankrolls <= 0))
+    profit_rate = float(np.mean(final_bankrolls >= config.starting_bankroll))
+    non_ruin_loss_rate = float(
+        np.mean((final_bankrolls > 0) & (final_bankrolls < config.starting_bankroll))
     )
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    sns.barplot(data=data, x="Outcome", y="Probability", hue="Outcome", ax=ax, legend=False)
-    ax.set_title("Column Bet Probability on American Roulette")
-    ax.set_xlabel("")
-    ax.set_ylabel("Probability")
-    ax.set_ylim(0, 0.75)
+    upper_bin = max(2000, int(np.ceil(final_bankrolls.max() / 50) * 50) + 50)
+    bins = np.arange(0, upper_bin + 50, 50)
 
-    for index, row in data.iterrows():
-        ax.text(
-            index,
-            row["Probability"] + 0.02,
-            f'{row["Pockets"]} pockets\n{row["Probability"]:.2%}',
-            ha="center",
-            va="bottom",
+    fig, ax = plt.subplots(figsize=(11, 6))
+    ax.hist(
+        final_bankrolls,
+        bins=bins,
+        color="#b3261e",
+        edgecolor="white",
+        linewidth=0.8,
+        alpha=0.88,
+    )
+    ax.axvline(
+        config.starting_bankroll,
+        color="black",
+        linestyle=":",
+        linewidth=2,
+        label=f"Starting bankroll = ${config.starting_bankroll:,.0f}",
+    )
+    ax.axvline(
+        mean_final,
+        color="#2f5f8f",
+        linestyle="--",
+        linewidth=2,
+        label=f"Mean final = ${mean_final:,.0f}",
+    )
+    ax.axvline(
+        median_final,
+        color="#2f7d32",
+        linestyle="-.",
+        linewidth=2,
+        label=f"Median final = ${median_final:,.0f}",
+    )
+
+    summary_text = (
+        f"Reached $0: {ruin_rate:.1%}\n"
+        f"Finished >= $1,000: {profit_rate:.1%}\n"
+        f"Below $1,000, not ruined: {non_ruin_loss_rate:.1%}"
+    )
+    ax.text(
+        0.98,
+        0.72,
+        summary_text,
+        transform=ax.transAxes,
+        ha="right",
+        va="top",
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "alpha": 0.9},
+    )
+    ax.set_title(f"Fibonacci Final Bankroll Distribution ({sessions:,} Simulations)")
+    ax.set_xlabel(f"Final bankroll after {spins} spins")
+    ax.set_ylabel("Session count")
+    ax.xaxis.set_major_formatter(lambda value, _: f"${value:,.0f}")
+    ax.legend(loc="upper left")
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
+def save_fibonacci_max_recovery_comparison_plot(
+    path: str = "outputs/fibonacci_max_recovery_comparison.png",
+    sessions: int = 10000,
+    spins: int = 120,
+    seed: int = 42,
+) -> None:
+    config = RouletteConfig(spins=spins)
+    categories = [
+        "Finished >= $1,000",
+        "Below $1,000, not ruined",
+        "Reached $0 bankroll",
+    ]
+    colors = {
+        "Finished >= $1,000": "#2f7d32",
+        "Below $1,000, not ruined": "#d19a2a",
+        "Reached $0 bankroll": "#b3261e",
+    }
+
+    def categorize(final_bankroll: float) -> str:
+        if final_bankroll <= 0:
+            return "Reached $0 bankroll"
+        if final_bankroll >= config.starting_bankroll:
+            return "Finished >= $1,000"
+        return "Below $1,000, not ruined"
+
+    def summarize_sessions(simulate_session, include_recovery_stats: bool = False):
+        rng = np.random.default_rng(seed)
+        outcome_counts = {category: 0 for category in categories}
+        recovery_counts = {category: 0 for category in categories}
+        final_bankrolls = []
+        recovery_sessions = 0
+        recovered_above_start = 0
+        full_table_max_sessions = 0
+
+        for _ in range(sessions):
+            session = simulate_session(config, rng)
+            if session.empty:
+                final_bankroll = config.starting_bankroll
+            else:
+                final_bankroll = float(session["bankroll_units"].iloc[-1] * config.unit_size)
+
+            category = categorize(final_bankroll)
+            outcome_counts[category] += 1
+            final_bankrolls.append(final_bankroll)
+
+            if include_recovery_stats and not session.empty:
+                recovery_mode = session.get("max_recovery_mode")
+                if recovery_mode is not None and bool(recovery_mode.any()):
+                    recovery_sessions += 1
+                    recovery_counts[category] += 1
+                    recovery_rows = session.loc[recovery_mode]
+
+                    if bool(
+                        (
+                            recovery_rows["bankroll_units"]
+                            > config.starting_bankroll_units
+                        ).any()
+                    ):
+                        recovered_above_start += 1
+
+                    if bool(
+                        (
+                            recovery_rows["bet_units"]
+                            == config.table_max_units
+                        ).any()
+                    ):
+                        full_table_max_sessions += 1
+
+        return {
+            "outcome_counts": outcome_counts,
+            "recovery_counts": recovery_counts,
+            "final_bankrolls": np.array(final_bankrolls),
+            "recovery_sessions": recovery_sessions,
+            "recovered_above_start": recovered_above_start,
+            "full_table_max_sessions": full_table_max_sessions,
+        }
+
+    base_summary = summarize_sessions(simulate_fibonacci_session)
+    recovery_summary = summarize_sessions(
+        simulate_fibonacci_with_max_recovery_session,
+        include_recovery_stats=True,
+    )
+
+    fig, (ax_all, ax_recovery) = plt.subplots(
+        1,
+        2,
+        figsize=(14, 6),
+        gridspec_kw={"width_ratios": [1.25, 1]},
+    )
+    fig.suptitle(
+        "$500 Table-Max Recovery Rule: Outcome Comparison",
+        fontsize=15,
+        y=0.98,
+    )
+
+    strategy_labels = [
+        "Base Fibonacci\nreset after win",
+        "$500 recovery\nuntil profit",
+    ]
+    x_positions = np.arange(len(strategy_labels))
+    bottoms = np.zeros(len(strategy_labels))
+
+    for category in categories:
+        counts = np.array(
+            [
+                base_summary["outcome_counts"][category],
+                recovery_summary["outcome_counts"][category],
+            ]
+        )
+        rates = counts / sessions
+        ax_all.bar(
+            x_positions,
+            rates,
+            bottom=bottoms,
+            color=colors[category],
+            edgecolor="white",
+            linewidth=0.9,
+            label=category,
         )
 
-    fig.tight_layout()
-    fig.savefig(path, dpi=160)
-    plt.close(fig)
+        for index, rate in enumerate(rates):
+            if rate >= 0.035:
+                ax_all.text(
+                    x_positions[index],
+                    bottoms[index] + rate / 2,
+                    f"{rate:.1%}\n({counts[index]:,})",
+                    ha="center",
+                    va="center",
+                    color="white",
+                    fontsize=9,
+                    fontweight="bold",
+                )
 
+        bottoms += rates
 
-def save_ev_contribution_plot(path: str = "outputs/expected_value.png") -> None:
-    win_contribution = COLUMN_WIN_PROBABILITY * 2
-    loss_contribution = (1 - COLUMN_WIN_PROBABILITY) * -1
-    net_ev = column_expected_value_units()
+    ax_all.set_title(f"All {sessions:,} simulated sessions")
+    ax_all.set_xticks(x_positions)
+    ax_all.set_xticklabels(strategy_labels)
+    ax_all.set_ylabel("Share of sessions")
+    ax_all.set_ylim(0, 1)
+    ax_all.yaxis.set_major_formatter(lambda value, _: f"{value:.0%}")
+    ax_all.legend(loc="upper center", bbox_to_anchor=(0.5, -0.16), ncol=1)
 
-    data = pd.DataFrame(
-        {
-            "Component": ["Win contribution", "Loss contribution", "Net EV"],
-            "Units": [win_contribution, loss_contribution, net_ev],
-        }
+    recovery_sessions = recovery_summary["recovery_sessions"]
+    recovery_bottom = 0.0
+
+    for category in categories:
+        count = recovery_summary["recovery_counts"][category]
+        rate = count / recovery_sessions if recovery_sessions else 0
+        ax_recovery.bar(
+            [0],
+            [rate],
+            bottom=[recovery_bottom],
+            color=colors[category],
+            edgecolor="white",
+            linewidth=0.9,
+        )
+
+        if rate >= 0.035:
+            ax_recovery.text(
+                0,
+                recovery_bottom + rate / 2,
+                f"{rate:.1%}\n({count:,})",
+                ha="center",
+                va="center",
+                color="white",
+                fontsize=9,
+                fontweight="bold",
+            )
+
+        recovery_bottom += rate
+
+    recovery_rate = recovery_sessions / sessions
+    recovered_rate = (
+        recovery_summary["recovered_above_start"] / recovery_sessions
+        if recovery_sessions
+        else 0
+    )
+    full_table_max_rate = recovery_summary["full_table_max_sessions"] / sessions
+
+    summary_text = (
+        f"Recovery stage triggered: {recovery_sessions:,}/{sessions:,} "
+        f"({recovery_rate:.1%})\n"
+        f"Ever returned above $1,000 after recovery: "
+        f"{recovery_summary['recovered_above_start']:,}/{recovery_sessions:,} "
+        f"({recovered_rate:.1%})\n"
+        f"Ever placed a full $500 recovery bet: "
+        f"{recovery_summary['full_table_max_sessions']:,}/{sessions:,} "
+        f"({full_table_max_rate:.1%})"
     )
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    colors = ["#2f7d32", "#b3261e", "#333333"]
-    ax.bar(data["Component"], data["Units"], color=colors)
-    ax.axhline(0, color="black", linewidth=1)
-    ax.set_title("Expected Value of a 1-Unit Column Bet")
-    ax.set_xlabel("")
-    ax.set_ylabel("Expected units per bet")
-
-    for index, row in data.iterrows():
-        y = row["Units"]
-        va = "bottom" if y >= 0 else "top"
-        offset = 0.025 if y >= 0 else -0.025
-        ax.text(index, y + offset, f'{y:+.4f}', ha="center", va=va)
-
-    fig.tight_layout()
-    fig.savefig(path, dpi=160)
-    plt.close(fig)
-
-
-def save_break_even_plot(path: str = "outputs/breakeven_vs_actual.png") -> None:
-    data = pd.DataFrame(
-        {
-            "Probability": ["Fair 2:1 break-even", "European roulette column"],
-            "Value": [break_even_probability_for_2_to_1(), COLUMN_WIN_PROBABILITY],
-        }
+    ax_recovery.set_title("Only sessions that entered recovery")
+    ax_recovery.set_xticks([0])
+    ax_recovery.set_xticklabels(["$500 recovery\nstage triggered"])
+    ax_recovery.set_ylim(0, 1)
+    ax_recovery.set_ylabel("Share of recovery-stage sessions")
+    ax_recovery.yaxis.set_major_formatter(lambda value, _: f"{value:.0%}")
+    ax_recovery.text(
+        0.5,
+        0.96,
+        summary_text,
+        transform=ax_recovery.transAxes,
+        ha="center",
+        va="top",
+        fontsize=9,
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "alpha": 0.92},
     )
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    sns.barplot(data=data, x="Probability", y="Value", hue="Probability", ax=ax, legend=False)
-    ax.set_title("Actual Win Probability Is Below Break-Even")
-    ax.set_xlabel("")
-    ax.set_ylabel("Win probability")
-    ax.set_ylim(0.31, 0.34)
-
-    for index, row in data.iterrows():
-        ax.text(index, row["Value"] + 0.001, f'{row["Value"]:.2%}', ha="center")
-
-    fig.tight_layout()
-    fig.savefig(path, dpi=160)
-    plt.close(fig)
-
-
-def save_profit_distribution_plot(
-    results: pd.DataFrame,
-    path: str = "outputs/final_profit_distribution.png",
-) -> None:
-    fig, ax = plt.subplots(figsize=(9, 5))
-    sns.histplot(results["final_profit"], bins=60, kde=True, ax=ax)
-    ax.axvline(0, color="black", linewidth=1)
-    ax.set_title("Monte Carlo Final Profit Distribution")
-    ax.set_xlabel("Final profit")
-    ax.set_ylabel("Session count")
-    fig.tight_layout()
-    fig.savefig(path, dpi=160)
-    plt.close(fig)
-
-
-def save_single_bankroll_path(path: str = "outputs/single_bankroll_path.png") -> None:
-    config = RouletteConfig()
-    rng = __import__("numpy").random.default_rng(7)
-    session = simulate_fibonacci_session(config, rng)
-
-    fig, ax = plt.subplots(figsize=(9, 5))
-    ax.plot(session["spin"], session["bankroll_units"] * config.unit_size)
-    ax.axhline(config.starting_bankroll, color="black", linewidth=1)
-    ax.set_title("Example Fibonacci Strategy Bankroll Path")
-    ax.set_xlabel("Spin")
-    ax.set_ylabel("Bankroll")
     fig.tight_layout()
     fig.savefig(path, dpi=160)
     plt.close(fig)
@@ -151,6 +329,10 @@ def save_flat_vs_fibonacci_comparison_plot(
 
     session["flat_bankroll"] = session["flat_bankroll_units"] * config.unit_size
     session["fibonacci_bankroll"] = session["fibonacci_bankroll_units"] * config.unit_size
+    flat_peak_index = session["flat_bankroll"].idxmax()
+    flat_max_drawdown_index = session["flat_drawdown_units"].idxmax()
+    fibonacci_peak_index = session["fibonacci_bankroll"].idxmax()
+    fibonacci_max_drawdown_index = session["fibonacci_drawdown_units"].idxmax()
 
     fig, ax = plt.subplots(figsize=(11, 6))
     ax.plot(
@@ -174,8 +356,44 @@ def save_flat_vs_fibonacci_comparison_plot(
         linewidth=1.5,
         label="Starting bankroll",
     )
-    ax.set_title("Single Simulation: Flat Betting vs Fibonacci Betting")
-    ax.set_xlabel("Spin")
+    ax.scatter(
+        session.loc[flat_peak_index, "spin"],
+        session.loc[flat_peak_index, "flat_bankroll"],
+        color="#5dade2",
+        edgecolor="black",
+        s=70,
+        zorder=4,
+        label="Flat max run-up",
+    )
+    ax.scatter(
+        session.loc[flat_max_drawdown_index, "spin"],
+        session.loc[flat_max_drawdown_index, "flat_bankroll"],
+        color="#1f3f66",
+        edgecolor="white",
+        s=80,
+        zorder=4,
+        label="Flat max drawdown point",
+    )
+    ax.scatter(
+        session.loc[fibonacci_peak_index, "spin"],
+        session.loc[fibonacci_peak_index, "fibonacci_bankroll"],
+        color="#2f7d32",
+        edgecolor="black",
+        s=80,
+        zorder=4,
+        label="Fibonacci max run-up",
+    )
+    ax.scatter(
+        session.loc[fibonacci_max_drawdown_index, "spin"],
+        session.loc[fibonacci_max_drawdown_index, "fibonacci_bankroll"],
+        color="#111111",
+        edgecolor="white",
+        s=90,
+        zorder=4,
+        label="Fibonacci max drawdown point",
+    )
+    ax.set_title("Single $1,000 Bankroll Simulation: Flat vs Fibonacci Betting")
+    ax.set_xlabel("Spin (same outcomes for both paths)")
     ax.set_ylabel("Bankroll ($)")
     ax.legend()
     ax.yaxis.set_major_formatter(lambda value, _: f"${value:,.0f}")
@@ -184,41 +402,42 @@ def save_flat_vs_fibonacci_comparison_plot(
     plt.close(fig)
 
 
-def save_flat_betting_normal_distribution_plot(
-    path: str = "outputs/flat_betting_normal_distribution.png",
+def save_flat_final_bankroll_distribution_plot(
+    path: str = "outputs/flat_final_bankroll_distribution.png",
+    sessions: int = 10000,
     spins: int = 120,
+    seed: int = 42,
 ) -> None:
     config = RouletteConfig(spins=spins)
-    win_probability = COLUMN_WIN_PROBABILITY
-    loss_probability = 1 - win_probability
-    return_values = np.array([2, -1])
-    probabilities = np.array([win_probability, loss_probability])
+    rng = np.random.default_rng(seed)
+    final_bankrolls = []
 
-    expected_return_units = float(np.sum(return_values * probabilities))
-    expected_bankroll = config.starting_bankroll + (
-        expected_return_units * spins * config.unit_size
-    )
-    return_variance_units = float(
-        np.sum(probabilities * (return_values - expected_return_units) ** 2)
-    )
-    session_standard_deviation = (
-        np.sqrt(spins * return_variance_units) * config.unit_size
-    )
+    for _ in range(sessions):
+        session = simulate_flat_session(config, rng)
+        if session.empty:
+            final_bankroll_units = config.starting_bankroll_units
+        else:
+            final_bankroll_units = session["bankroll_units"].iloc[-1]
+        final_bankrolls.append(final_bankroll_units * config.unit_size)
 
-    x_values = np.linspace(
-        expected_bankroll - 4 * session_standard_deviation,
-        expected_bankroll + 4 * session_standard_deviation,
-        500,
-    )
-    density = (
-        1
-        / (session_standard_deviation * np.sqrt(2 * np.pi))
-        * np.exp(-0.5 * ((x_values - expected_bankroll) / session_standard_deviation) ** 2)
-    )
+    final_bankrolls = np.array(final_bankrolls)
+    mean_final = float(np.mean(final_bankrolls))
+    median_final = float(np.median(final_bankrolls))
+    profit_rate = float(np.mean(final_bankrolls >= config.starting_bankroll))
 
-    fig, ax = plt.subplots(figsize=(10, 5.5))
-    ax.plot(x_values, density, color="#2f5f8f", linewidth=2.5)
-    ax.fill_between(x_values, density, color="#2f5f8f", alpha=0.18)
+    lower_bin = int(np.floor(final_bankrolls.min() / 15) * 15) - 7.5
+    upper_bin = int(np.ceil(final_bankrolls.max() / 15) * 15) + 22.5
+    bins = np.arange(lower_bin, upper_bin + 15, 15)
+
+    fig, ax = plt.subplots(figsize=(11, 6))
+    ax.hist(
+        final_bankrolls,
+        bins=bins,
+        color="#2f5f8f",
+        edgecolor="white",
+        linewidth=0.7,
+        alpha=0.88,
+    )
     ax.axvline(
         config.starting_bankroll,
         color="black",
@@ -227,18 +446,32 @@ def save_flat_betting_normal_distribution_plot(
         label=f"Starting bankroll = ${config.starting_bankroll:,.0f}",
     )
     ax.axvline(
-        expected_bankroll,
+        mean_final,
         color="#b3261e",
         linestyle="--",
         linewidth=2,
-        label=f"Expected bankroll = ${expected_bankroll:,.0f}",
+        label=f"Mean final bankroll = ${mean_final:,.0f}",
     )
-    ax.set_title("Normal Approximation of Flat Betting Outcomes")
-    ax.set_xlabel("Final bankroll after 120 spins")
-    ax.set_ylabel("Relative likelihood")
+
+    summary_text = (
+        f"Sessions: {sessions:,}\n"
+        f"Median final = ${median_final:,.0f}\n"
+        f"Finished >= $1,000: {profit_rate:.1%}"
+    )
+    ax.text(
+        0.98,
+        0.72,
+        summary_text,
+        transform=ax.transAxes,
+        ha="right",
+        va="top",
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "alpha": 0.9},
+    )
+    ax.set_title(f"Flat 1-Unit Final Bankroll Distribution ({sessions:,} Simulations)")
+    ax.set_xlabel(f"Final bankroll after {spins} spins")
+    ax.set_ylabel("Session count")
     ax.xaxis.set_major_formatter(lambda value, _: f"${value:,.0f}")
-    ax.set_yticks([])
-    ax.legend()
+    ax.legend(loc="upper left")
     fig.tight_layout()
     fig.savefig(path, dpi=160)
     plt.close(fig)
@@ -246,49 +479,43 @@ def save_flat_betting_normal_distribution_plot(
 
 def save_fibonacci_equity_paths_plot(
     path: str = "outputs/fibonacci_equity_paths.png",
-    sessions: int = 1000,
+    sessions: int = 10000,
     spins: int = 120,
     seed: int = 42,
+    sample_paths: int = 1000,
 ) -> None:
     save_equity_paths_plot(
         simulate_session=simulate_fibonacci_session,
         path=path,
-        title=f"Fibonacci Strategy Equity Paths ({sessions:,} Simulations)",
+        title=(
+            "Fibonacci Monte Carlo Bankroll Paths "
+            f"({sample_paths:,} of {sessions:,} Sessions Shown)"
+        ),
         sessions=sessions,
         spins=spins,
         seed=seed,
-    )
-
-
-def save_fibonacci_max_recovery_equity_paths_plot(
-    path: str = "outputs/fibonacci_max_recovery_equity_paths.png",
-    sessions: int = 1000,
-    spins: int = 120,
-    seed: int = 42,
-) -> None:
-    save_equity_paths_plot(
-        simulate_session=simulate_fibonacci_with_max_recovery_session,
-        path=path,
-        title=f"Fibonacci With $500 Recovery Rule ({sessions:,} Simulations)",
-        sessions=sessions,
-        spins=spins,
-        seed=seed,
+        sample_paths=sample_paths,
     )
 
 
 def save_flat_equity_paths_plot(
     path: str = "outputs/flat_equity_paths.png",
-    sessions: int = 1000,
+    sessions: int = 10000,
     spins: int = 120,
     seed: int = 42,
+    sample_paths: int = 1000,
 ) -> None:
     save_equity_paths_plot(
         simulate_session=simulate_flat_session,
         path=path,
-        title=f"Flat Betting Equity Paths ({sessions:,} Simulations)",
+        title=(
+            "Flat 1-Unit Monte Carlo Bankroll Paths "
+            f"({sample_paths:,} of {sessions:,} Sessions Shown)"
+        ),
         sessions=sessions,
         spins=spins,
         seed=seed,
+        sample_paths=sample_paths,
     )
 
 
@@ -299,41 +526,56 @@ def save_equity_paths_plot(
     sessions: int,
     spins: int,
     seed: int,
+    sample_paths: int,
 ) -> None:
     config = RouletteConfig(spins=spins)
     rng = np.random.default_rng(seed)
+    sample_count = min(sample_paths, sessions)
+    sampled_session_indexes = set(
+        np.linspace(0, sessions - 1, sample_count, dtype=int)
+    )
 
     paths = []
     final_bankrolls = []
 
-    for _ in range(sessions):
+    for session_index in range(sessions):
         session = simulate_session(config, rng)
-        bankroll = np.full(spins + 1, np.nan)
-        bankroll[0] = config.starting_bankroll
-
-        if not session.empty:
-            played_spins = session["spin"].astype(int).to_numpy()
-            bankroll[played_spins] = session["bankroll_units"].to_numpy() * config.unit_size
-            final_spin = int(played_spins[-1])
-            final_bankroll = bankroll[final_spin]
-            if final_spin < spins:
-                bankroll[final_spin + 1 :] = final_bankroll
-        else:
+        if session.empty:
             final_bankroll = config.starting_bankroll
-            bankroll[1:] = final_bankroll
+        else:
+            final_bankroll = float(session["bankroll_units"].iloc[-1] * config.unit_size)
 
-        paths.append(bankroll)
         final_bankrolls.append(final_bankroll)
 
+        if session_index in sampled_session_indexes:
+            bankroll = np.full(spins + 1, np.nan)
+            bankroll[0] = config.starting_bankroll
+
+            if not session.empty:
+                played_spins = session["spin"].astype(int).to_numpy()
+                bankroll[played_spins] = (
+                    session["bankroll_units"].to_numpy() * config.unit_size
+                )
+                final_spin = int(played_spins[-1])
+                if final_spin < spins:
+                    bankroll[final_spin + 1 :] = final_bankroll
+            else:
+                bankroll[1:] = final_bankroll
+
+            paths.append((bankroll, final_bankroll))
+
     x_values = np.arange(spins + 1)
+    final_bankrolls = np.array(final_bankrolls)
     median_final = float(np.median(final_bankrolls))
+    profit_rate = float(np.mean(final_bankrolls >= config.starting_bankroll))
+    ruin_rate = float(np.mean(final_bankrolls <= 0))
 
     with plt.style.context("dark_background"):
         fig, ax = plt.subplots(figsize=(14, 6))
         fig.patch.set_facecolor("#050505")
         ax.set_facecolor("#050505")
 
-        for bankroll, final_bankroll in zip(paths, final_bankrolls):
+        for bankroll, final_bankroll in paths:
             color = "#5ad7a0" if final_bankroll >= config.starting_bankroll else "#ff6f7d"
             ax.plot(x_values, bankroll, color=color, alpha=0.16, linewidth=0.9)
 
@@ -364,7 +606,14 @@ def save_equity_paths_plot(
         ax.text(
             0,
             1.02,
-            f"Spins per session: {spins}    Median final bankroll: ${median_final:,.0f}",
+            (
+                f"Spins per session: {spins}    "
+                f"Simulations: {sessions:,}    "
+                f"Displayed paths: {len(paths):,}    "
+                f"Median final bankroll: ${median_final:,.0f}    "
+                f"Finished >= $1,000: {profit_rate:.1%}    "
+                f"Reached $0: {ruin_rate:.1%}"
+            ),
             transform=ax.transAxes,
             color="#9aa0a6",
             fontsize=10,
@@ -384,121 +633,234 @@ def save_equity_paths_plot(
         plt.close(fig)
 
 
-def save_american_bet_ev_comparison_plot(
-    path: str = "outputs/american_bet_ev_comparison.png",
+def save_fibonacci_ruin_probability_by_session_length_plot(
+    path: str = "outputs/fibonacci_ruin_probability_by_session_length.png",
+    session_lengths: tuple[int, ...] = (50, 120, 500, 1000),
+    sessions: int = 10000,
+    seed: int = 42,
 ) -> None:
-    data = pd.DataFrame(american_bet_type_rows())
-    data["Expected loss"] = data["house_edge"] * 100
+    strategies = [
+        ("Base Fibonacci", simulate_fibonacci_session, "#b3261e"),
+        ("With $500 recovery rule", simulate_fibonacci_with_max_recovery_session, "#2f5f8f"),
+    ]
+    rows = []
 
+    for label, simulate_session, color in strategies:
+        for spins in session_lengths:
+            config = RouletteConfig(spins=spins)
+            rng = np.random.default_rng(seed)
+            ruined_sessions = 0
+
+            for _ in range(sessions):
+                session = simulate_session(config, rng)
+                if session.empty:
+                    final_bankroll_units = config.starting_bankroll_units
+                else:
+                    final_bankroll_units = session["bankroll_units"].iloc[-1]
+
+                ruined_sessions += final_bankroll_units <= 0
+
+            rows.append(
+                {
+                    "strategy": label,
+                    "spins": spins,
+                    "ruined_sessions": ruined_sessions,
+                    "ruin_probability": ruined_sessions / sessions,
+                    "color": color,
+                }
+            )
+
+    results = pd.DataFrame(rows)
     fig, ax = plt.subplots(figsize=(11, 6))
-    colors = np.where(data["name"].eq("Five-number bet"), "#b3261e", "#2f5f8f")
-    ax.bar(data["name"], data["Expected loss"], color=colors)
-    ax.set_title("American Roulette Expected Loss by Bet Type")
-    ax.set_xlabel("")
-    ax.set_ylabel("Expected loss per unit bet")
-    ax.set_ylim(0, 9)
-    ax.tick_params(axis="x", rotation=35)
 
-    for index, row in data.iterrows():
-        ax.text(
-            index,
-            row["Expected loss"] + 0.18,
-            f'{row["Expected loss"]:.2f}%',
-            ha="center",
-            va="bottom",
-            fontsize=9,
+    label_offsets = {
+        "Base Fibonacci": -0.035,
+        "With $500 recovery rule": 0.025,
+    }
+
+    for label, _, color in strategies:
+        strategy_rows = results.loc[results["strategy"].eq(label)]
+        ax.plot(
+            strategy_rows["spins"],
+            strategy_rows["ruin_probability"],
+            marker="o",
+            linewidth=2.6,
+            markersize=7,
+            color=color,
+            label=label,
         )
 
+        for _, row in strategy_rows.iterrows():
+            offset = label_offsets[label]
+            ax.text(
+                row["spins"],
+                row["ruin_probability"] + offset,
+                f"{row['ruin_probability']:.1%}",
+                ha="center",
+                va="bottom" if offset > 0 else "top",
+                fontsize=9,
+                color=color,
+                fontweight="bold",
+            )
+
+    ax.set_title("Fibonacci Ruin Probability by Session Length")
+    ax.set_xlabel("Spins per session")
+    ax.set_ylabel("Estimated probability of reaching $0")
+    ax.set_xticks(list(session_lengths))
+    ax.set_ylim(0, 0.95)
+    ax.yaxis.set_major_formatter(lambda value, _: f"{value:.0%}")
+    ax.grid(True, axis="y", alpha=0.35)
+    ax.legend(loc="lower right")
+    ax.text(
+        0.01,
+        0.97,
+        f"{sessions:,} simulations per session length, $1,000 starting bankroll",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontsize=10,
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "alpha": 0.9},
+    )
     fig.tight_layout()
     fig.savefig(path, dpi=160)
     plt.close(fig)
 
 
-def save_american_average_return_over_time_plot(
-    bet_name: str,
-    path: str,
-    title_name: str | None = None,
-    color: str = "#1f77b4",
+def save_two_to_one_first_bet_volatility_plot(
+    path: str = "outputs/two_to_one_first_bet_volatility.png",
     bets: int = 10000,
     seed: int = 24,
 ) -> None:
     rng = np.random.default_rng(seed)
-    bet_type = next(row for row in american_bet_type_rows() if row["name"] == bet_name)
-    wins = rng.random(bets) < bet_type["win_probability"]
-    returns = np.where(wins, bet_type["payout"], -1)
-    average_return_percentage = np.cumsum(returns) / np.arange(1, bets + 1) * 100
-    theoretical_ev_percentage = bet_type["ev_units"] * 100
+
+    later_wins = rng.random(bets - 1) < COLUMN_WIN_PROBABILITY
+    later_returns = np.where(later_wins, 2, -1)
+    returns = np.concatenate(([2], later_returns))
+    x_values = np.arange(1, bets + 1)
+
+    average_return = np.cumsum(returns) / x_values * 100
+    theoretical_ev_percentage = column_expected_value_units() * 100
 
     fig, ax = plt.subplots(figsize=(11, 6))
     ax.plot(
-        np.arange(1, bets + 1),
-        average_return_percentage,
-        color=color,
-        linewidth=2,
-        label="Simulated average return",
+        x_values,
+        average_return,
+        color="#2f7d32",
+        linewidth=2.3,
+        label="One simulation: flat 1-unit entries",
     )
     ax.axhline(
         theoretical_ev_percentage,
-        color=color,
+        color="#333333",
         linestyle="--",
         linewidth=2,
         label=f"Expected value = {theoretical_ev_percentage:.2f}%",
     )
     ax.axhline(
         0,
-        color=color,
+        color="#6b7280",
         linestyle=":",
         linewidth=2,
-        label="Break-even = 0%",
+        label="Break-even",
     )
-    title_name = title_name or bet_name
-    ax.set_title(f"American Roulette {title_name}: Average Return Over Time")
-    ax.set_xlabel("Number of bets")
-    ax.set_ylabel("Average return per bet (%)")
-    ax.legend()
+    ax.set_title("Flat 1-Unit 2:1 Roulette Entries Over 10,000 Bets")
+    ax.set_xlabel("Number of flat 1-unit 2:1 entries (log scale)")
+    ax.set_ylabel("Average return per bet")
+    ax.set_xscale("log")
+    ax.set_xlim(1, bets)
+    ax.set_ylim(min(-25, float(average_return.min()) - 8), 220)
+    ax.set_xticks([1, 10, 100, 1000, 10000])
+    ax.xaxis.set_major_formatter(lambda value, _: f"{value:,.0f}")
     ax.yaxis.set_major_formatter(lambda value, _: f"{value:.0f}%")
+    ax.grid(True, which="both", alpha=0.28)
+    ax.legend(loc="upper right")
     fig.tight_layout()
     fig.savefig(path, dpi=160)
     plt.close(fig)
 
 
-def save_american_ev_convergence_plot(path: str = "outputs/american_ev_convergence.png") -> None:
-    save_american_average_return_over_time_plot("Column", path)
+def save_fibonacci_average_return_over_time_plot(
+    path: str = "outputs/fibonacci_average_return_over_time.png",
+    bets: int = 10000,
+    seed: int = 24,
+) -> None:
+    config = RouletteConfig(spins=bets)
+    sequence = fibonacci_sequence(config.table_max_units)
+    rng = np.random.default_rng(seed)
+
+    later_wins = rng.random(bets - 1) < COLUMN_WIN_PROBABILITY
+    wins = np.concatenate(([True], later_wins))
+
+    bet_units = np.empty(bets)
+    profit_units = np.empty(bets)
+    sequence_index = 0
+
+    for index, win in enumerate(wins):
+        bet_units[index] = min(sequence[sequence_index], config.table_max_units)
+
+        if win:
+            profit_units[index] = 2 * bet_units[index]
+            sequence_index = 0
+        else:
+            profit_units[index] = -bet_units[index]
+            sequence_index = min(sequence_index + 1, len(sequence) - 1)
+
+    x_values = np.arange(1, bets + 1)
+    average_return = np.cumsum(profit_units) / np.cumsum(bet_units) * 100
+    theoretical_ev_percentage = column_expected_value_units() * 100
+
+    fig, ax = plt.subplots(figsize=(11, 6))
+    ax.plot(
+        x_values,
+        average_return,
+        color="#b3261e",
+        linewidth=2.3,
+        label="One simulation: Fibonacci entries",
+    )
+    ax.axhline(
+        theoretical_ev_percentage,
+        color="#333333",
+        linestyle="--",
+        linewidth=2,
+        label=f"Expected value = {theoretical_ev_percentage:.2f}%",
+    )
+    ax.axhline(
+        0,
+        color="#6b7280",
+        linestyle=":",
+        linewidth=2,
+        label="Break-even",
+    )
+    ax.set_title("Fibonacci 2:1 Entries: Average Return Per Unit Wagered")
+    ax.set_xlabel("Number of Fibonacci 2:1 entries (log scale)")
+    ax.set_ylabel("Average return per unit wagered")
+    ax.set_xscale("log")
+    ax.set_xlim(1, bets)
+    ax.set_ylim(min(-25, float(average_return.min()) - 8), 220)
+    ax.set_xticks([1, 10, 100, 1000, 10000])
+    ax.xaxis.set_major_formatter(lambda value, _: f"{value:,.0f}")
+    ax.yaxis.set_major_formatter(lambda value, _: f"{value:.0f}%")
+    ax.grid(True, which="both", alpha=0.28)
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
 
 
 def save_requested_average_return_plots() -> None:
-    save_american_average_return_over_time_plot(
-        "Column",
-        "outputs/standard_bets_average_return_over_time.png",
-        title_name="Standard Bets",
-        color="#1f77b4",
-        seed=24,
-    )
-    save_american_average_return_over_time_plot(
-        "Five-number bet",
-        "outputs/five_number_bet_average_return_over_time.png",
-        color="#b3261e",
-        seed=24,
-    )
+    save_two_to_one_first_bet_volatility_plot()
+    save_fibonacci_average_return_over_time_plot()
 
 
 def generate_all_plots() -> None:
-    save_probability_plot()
-    save_ev_contribution_plot()
-    save_break_even_plot()
-    save_single_bankroll_path()
-    save_flat_betting_normal_distribution_plot()
-    save_flat_vs_fibonacci_comparison_plot()
-    save_fibonacci_equity_paths_plot()
-    save_fibonacci_max_recovery_equity_paths_plot()
-    save_flat_equity_paths_plot()
-    save_american_bet_ev_comparison_plot()
-    save_american_ev_convergence_plot()
     save_requested_average_return_plots()
-
-    results = run_monte_carlo(sessions=10000)
-    results.to_csv("outputs/monte_carlo_results.csv", index=False)
-    save_profit_distribution_plot(results)
+    save_flat_vs_fibonacci_comparison_plot()
+    save_flat_equity_paths_plot()
+    save_fibonacci_equity_paths_plot()
+    save_flat_final_bankroll_distribution_plot()
+    save_fibonacci_final_bankroll_distribution_plot()
+    save_fibonacci_max_recovery_comparison_plot()
+    save_fibonacci_ruin_probability_by_session_length_plot()
 
 
 if __name__ == "__main__":
