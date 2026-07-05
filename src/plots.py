@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -22,8 +24,14 @@ from strategy import (
 sns.set_theme(style="whitegrid")
 
 
+def save_figure(fig, path: str, **savefig_kwargs) -> None:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, **savefig_kwargs)
+
+
 def save_fibonacci_final_bankroll_distribution_plot(
-    path: str = "outputs/fibonacci_final_bankroll_distribution.png",
+    path: str = "outputs/figures/fibonacci_final_bankroll_distribution.png",
     sessions: int = 10000,
     spins: int = 120,
     seed: int = 42,
@@ -103,12 +111,12 @@ def save_fibonacci_final_bankroll_distribution_plot(
     ax.xaxis.set_major_formatter(lambda value, _: f"${value:,.0f}")
     ax.legend(loc="upper left")
     fig.tight_layout()
-    fig.savefig(path, dpi=160)
+    save_figure(fig, path, dpi=160)
     plt.close(fig)
 
 
 def save_fibonacci_max_recovery_comparison_plot(
-    path: str = "outputs/fibonacci_max_recovery_comparison.png",
+    path: str = "outputs/figures/fibonacci_max_recovery_comparison.png",
     sessions: int = 10000,
     spins: int = 120,
     seed: int = 42,
@@ -316,12 +324,12 @@ def save_fibonacci_max_recovery_comparison_plot(
     )
 
     fig.tight_layout()
-    fig.savefig(path, dpi=160)
+    save_figure(fig, path, dpi=160)
     plt.close(fig)
 
 
 def save_flat_vs_fibonacci_comparison_plot(
-    path: str = "outputs/flat_vs_fibonacci_bankroll_path.png",
+    path: str = "outputs/figures/flat_vs_fibonacci_bankroll_path.png",
 ) -> None:
     config = RouletteConfig(spins=120)
     rng = np.random.default_rng(7)
@@ -398,12 +406,12 @@ def save_flat_vs_fibonacci_comparison_plot(
     ax.legend()
     ax.yaxis.set_major_formatter(lambda value, _: f"${value:,.0f}")
     fig.tight_layout()
-    fig.savefig(path, dpi=160)
+    save_figure(fig, path, dpi=160)
     plt.close(fig)
 
 
 def save_flat_final_bankroll_distribution_plot(
-    path: str = "outputs/flat_final_bankroll_distribution.png",
+    path: str = "outputs/figures/flat_final_bankroll_distribution.png",
     sessions: int = 10000,
     spins: int = 120,
     seed: int = 42,
@@ -473,12 +481,12 @@ def save_flat_final_bankroll_distribution_plot(
     ax.xaxis.set_major_formatter(lambda value, _: f"${value:,.0f}")
     ax.legend(loc="upper left")
     fig.tight_layout()
-    fig.savefig(path, dpi=160)
+    save_figure(fig, path, dpi=160)
     plt.close(fig)
 
 
 def save_fibonacci_equity_paths_plot(
-    path: str = "outputs/fibonacci_equity_paths.png",
+    path: str = "outputs/figures/fibonacci_equity_paths.png",
     sessions: int = 10000,
     spins: int = 120,
     seed: int = 42,
@@ -499,7 +507,7 @@ def save_fibonacci_equity_paths_plot(
 
 
 def save_flat_equity_paths_plot(
-    path: str = "outputs/flat_equity_paths.png",
+    path: str = "outputs/figures/flat_equity_paths.png",
     sessions: int = 10000,
     spins: int = 120,
     seed: int = 42,
@@ -629,12 +637,12 @@ def save_equity_paths_plot(
         ax.spines["right"].set_color("#2b3035")
         ax.legend(loc="upper right", frameon=False, labelcolor="#d7dde4")
         fig.tight_layout()
-        fig.savefig(path, dpi=160, facecolor=fig.get_facecolor())
+        save_figure(fig, path, dpi=160, facecolor=fig.get_facecolor())
         plt.close(fig)
 
 
 def save_fibonacci_ruin_probability_by_session_length_plot(
-    path: str = "outputs/fibonacci_ruin_probability_by_session_length.png",
+    path: str = "outputs/figures/fibonacci_ruin_probability_by_session_length.png",
     session_lengths: tuple[int, ...] = (50, 120, 500, 1000),
     sessions: int = 10000,
     seed: int = 42,
@@ -722,12 +730,12 @@ def save_fibonacci_ruin_probability_by_session_length_plot(
         bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "alpha": 0.9},
     )
     fig.tight_layout()
-    fig.savefig(path, dpi=160)
+    save_figure(fig, path, dpi=160)
     plt.close(fig)
 
 
 def save_two_to_one_first_bet_volatility_plot(
-    path: str = "outputs/two_to_one_first_bet_volatility.png",
+    path: str = "outputs/figures/two_to_one_first_bet_volatility.png",
     bets: int = 10000,
     seed: int = 24,
 ) -> None:
@@ -775,12 +783,12 @@ def save_two_to_one_first_bet_volatility_plot(
     ax.grid(True, which="both", alpha=0.28)
     ax.legend(loc="upper right")
     fig.tight_layout()
-    fig.savefig(path, dpi=160)
+    save_figure(fig, path, dpi=160)
     plt.close(fig)
 
 
 def save_fibonacci_average_return_over_time_plot(
-    path: str = "outputs/fibonacci_average_return_over_time.png",
+    path: str = "outputs/figures/fibonacci_average_return_over_time.png",
     bets: int = 10000,
     seed: int = 24,
 ) -> None:
@@ -843,7 +851,7 @@ def save_fibonacci_average_return_over_time_plot(
     ax.grid(True, which="both", alpha=0.28)
     ax.legend(loc="upper right")
     fig.tight_layout()
-    fig.savefig(path, dpi=160)
+    save_figure(fig, path, dpi=160)
     plt.close(fig)
 
 

@@ -6,6 +6,36 @@
 ## Project Aim
 This project uses expected value and Monte Carlo simulation to disprove a roulette betting strategy that claims to achieve a 98% win rate. The goal of this project is to test the strategy quantitatively and clarify common misunderstandings of gambling. By the end of this report readers should be able to understand why most gambling strategies do not overcome the house edge of casinos.
 
+## Reproducing the Analysis
+
+Create and activate a virtual environment, then install the dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Generate the report figures and Monte Carlo table:
+
+```bash
+make plots       # writes PNG charts to outputs/figures/
+make simulation  # writes outputs/tables/monte_carlo_results.csv
+```
+
+The CSV table is ignored by Git because it is generated data. The checked-in PNG files under `outputs/figures/` are the figures used in this report.
+
+## Project Structure
+
+```txt
+src/              simulation, strategy logic, and plotting code
+tests/            lightweight probability and strategy tests
+data/             optional external input data; not required for this project
+outputs/figures/  checked-in report charts
+outputs/tables/   generated CSV tables, ignored by Git
+notebooks/        optional exploratory analysis
+```
+
 For simplicity, **American roulette** will be used for this report, which has 38 pockets: numbers 1–36, 0, and 00.
 
 <table>
@@ -92,7 +122,7 @@ To further examine this, we can look at the average return over time for the und
 
 The chart below uses a single simulated sequence of 10,000 flat 1-unit entries on a 2:1 column or dozen bet, where the first bet is forced to win. The x-axis uses a log scale so the first few bets and the long-run trend can be more visible.
 
-<img width="900" alt="Flat 1-unit 2:1 roulette entries average return over time" src="outputs/two_to_one_first_bet_volatility.png" />
+<img width="900" alt="Flat 1-unit 2:1 roulette entries average return over time" src="outputs/figures/two_to_one_first_bet_volatility.png" />
 
 In the early stages, the average return is more volatile. As more bets are placed, the effect of the first win becomes smaller and the average return moves toward the negative expected value of -5.26%. This is why a strategy can feel powerful after an early win while still being mathematically unfavorable over time.
 
@@ -108,7 +138,7 @@ $$
 
 This measures how much profit or loss is being made for every unit wagered, rather than simply averaging by the number of bets.
 
-<img width="900" alt="Fibonacci 2:1 roulette entries average return per unit wagered over time" src="outputs/fibonacci_average_return_over_time.png" />
+<img width="900" alt="Fibonacci 2:1 roulette entries average return per unit wagered over time" src="outputs/figures/fibonacci_average_return_over_time.png" />
 
 From the chart, the average return is still volatile at the beginning. It can also appear stronger for long periods because wins after larger Fibonacci bets can quickly lift the average. However, the Fibonacci system does not change the probability of winning the next spin. Each column or dozen bet still has the same expected value of -5.26%.
 
@@ -132,7 +162,7 @@ The simulation treats each step as a placed betting entry. Waiting spins where n
 
 ### Flat vs Fibonacci Bankroll Path
 
-<img width="900" alt="Single $1,000 bankroll simulation comparing flat 1-unit betting and Fibonacci betting" src="outputs/flat_vs_fibonacci_bankroll_path.png" />
+<img width="900" alt="Single $1,000 bankroll simulation comparing flat 1-unit betting and Fibonacci betting" src="outputs/figures/flat_vs_fibonacci_bankroll_path.png" />
 
 In this single simulation, there are 37 wins and 83 losses across 120 placed bets. The flat 1-unit strategy ends at $955, a loss of $45. The Fibonacci strategy first rises as high as $1,425, but later reaches $0 on betting entry 112. Maximum run-up measures the highest gain above the $1,000 starting bankroll, while maximum drawdown measures the largest fall from a previous bankroll peak.
 
@@ -159,13 +189,13 @@ Variance describes how much individual results can spread around the average. In
 
 The chart below is based on 10,000 simulated flat 1-unit sessions over 120 placed bets, with 1,000 sample paths shown so the graph remains readable. Each session starts with a $1,000 bankroll and uses a fixed $5 bet for every betting entry.
 
-<img width="900" alt="Flat 1-unit Monte Carlo bankroll paths over 120 placed bets" src="outputs/flat_equity_paths.png" />
+<img width="900" alt="Flat 1-unit Monte Carlo bankroll paths over 120 placed bets" src="outputs/figures/flat_equity_paths.png" />
 
 The flat 1-unit paths stay relatively close to the starting bankroll because each bet is small compared with the $1,000 bankroll. In these 120-entry simulations, no flat 1-unit session reaches $0. However, most paths still drift slightly downward because every $5 bet has negative expected value.
 
 The distribution chart records the final bankroll from all 10,000 flat 1-unit sessions.
 
-<img width="900" alt="Flat 1-unit final bankroll distribution after 10,000 simulations" src="outputs/flat_final_bankroll_distribution.png" />
+<img width="900" alt="Flat 1-unit final bankroll distribution after 10,000 simulations" src="outputs/figures/flat_final_bankroll_distribution.png" />
 
 The results form a bell-shaped distribution. This means most sessions finish near the average result, while fewer sessions finish far above or far below it.
 
@@ -195,11 +225,11 @@ The Fibonacci system changes this distribution because the bet size increases af
 
 The chart below shows 1,000 sample paths from those 10,000 base Fibonacci sessions. The green paths finish at or above the starting bankroll, while the red paths finish below it. Compared with flat betting, the Fibonacci paths spread much more widely because the bet size grows after losses.
 
-<img width="900" alt="Fibonacci Monte Carlo bankroll paths over 120 placed bets" src="outputs/fibonacci_equity_paths.png" />
+<img width="900" alt="Fibonacci Monte Carlo bankroll paths over 120 placed bets" src="outputs/figures/fibonacci_equity_paths.png" />
 
 The path chart shows the tradeoff visually: many sessions climb above $1,000, but many others fall sharply to $0. The distribution chart below summarizes the final bankroll from all 10,000 Fibonacci sessions.
 
-<img width="900" alt="Fibonacci final bankroll distribution after 10,000 simulations" src="outputs/fibonacci_final_bankroll_distribution.png" />
+<img width="900" alt="Fibonacci final bankroll distribution after 10,000 simulations" src="outputs/figures/fibonacci_final_bankroll_distribution.png" />
 
 The Fibonacci distribution shows why one bankroll path is not enough. Many sessions finish above the starting bankroll, but a large group of sessions also reaches $0. In this simulation, the median final bankroll is $1,400, while the mean final bankroll is only about $878. This happens because the losing sessions are severe enough to pull the average below the starting bankroll.
 
@@ -211,7 +241,7 @@ The Fibonacci distribution shows why one bankroll path is not enough. Many sessi
 
 The strategy also includes a table-maximum recovery rule. Here, $500 is not a maximum drawdown; it is the largest bet the table allows. Once the Fibonacci progression calls for a bet larger than the $500 table maximum, the player keeps betting up to $500 until the bankroll returns above the original $1,000 starting point or reaches $0.
 
-<img width="900" alt="$500 table maximum recovery rule outcome comparison" src="outputs/fibonacci_max_recovery_comparison.png" />
+<img width="900" alt="$500 table maximum recovery rule outcome comparison" src="outputs/figures/fibonacci_max_recovery_comparison.png" />
 
 The chart isolates the effect of that extra rule. The $500 recovery rule slightly increases the share of sessions that finish at or above $1,000, from 55.7% to 57.0%. However, it also increases the ruin rate, from 39.0% to 41.9%. Among the 2,521 sessions that entered recovery mode, 2,276 finished at $0. Only 236 recovery-stage sessions finished at or above the starting bankroll.
 
@@ -223,7 +253,7 @@ The 120-entry simulation is useful as a realistic short-session example, but it 
 
 To test this, I repeated the Fibonacci simulation 10,000 times at different numbers of placed bets per session. The 1,000-entry case is not the true long run, but it acts as a longer-session stress test. The chart compares the base Fibonacci rule with the version that keeps betting up to the $500 table maximum until the bankroll returns to profit.
 
-<img width="900" alt="Fibonacci ruin probability by placed bets per session" src="outputs/fibonacci_ruin_probability_by_session_length.png" />
+<img width="900" alt="Fibonacci ruin probability by placed bets per session" src="outputs/figures/fibonacci_ruin_probability_by_session_length.png" />
 
 | Placed bets per session | Base Fibonacci reached $0 | With $500 recovery rule reached $0 |
 | ---: | ---: | ---: |
