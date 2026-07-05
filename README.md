@@ -120,7 +120,7 @@ The chart is more jagged because losses later in the sequence are attached to la
 
 Average return explains the long-term direction of the bet, but it does not show how a real bankroll can move during one session. Since the strategy recommends starting with a $1,000 bankroll, the next step is to simulate one possible session.
 
-Using Python, I simulated 120 roulette spins based on the win probability of a column or dozen bet:
+Using Python, I simulated 120 placed bets based on the win probability of a column or dozen bet:
 
 $$
 P(\text{win}) = \frac{12}{38}
@@ -128,11 +128,13 @@ $$
 
 This simulation uses a fixed random seed, which means the same sequence of random outcomes can be reproduced each time the code is run.
 
+The simulation treats each step as a placed betting entry. Waiting spins where no bet is placed are not counted because they do not change the bankroll. The “golden entry” and waiting rules do not change the probability of the next placed column or dozen bet, which remains 12/38.
+
 ### Flat vs Fibonacci Bankroll Path
 
 <img width="900" alt="Single $1,000 bankroll simulation comparing flat 1-unit betting and Fibonacci betting" src="outputs/flat_vs_fibonacci_bankroll_path.png" />
 
-In this single simulation, there are 37 wins and 83 losses. The flat 1-unit strategy ends at $955, a loss of $45. The Fibonacci strategy first rises as high as $1,425, but later reaches $0 on spin 112. Maximum run-up measures the highest gain above the $1,000 starting bankroll, while maximum drawdown measures the largest fall from a previous bankroll peak.
+In this single simulation, there are 37 wins and 83 losses across 120 placed bets. The flat 1-unit strategy ends at $955, a loss of $45. The Fibonacci strategy first rises as high as $1,425, but later reaches $0 on betting entry 112. Maximum run-up measures the highest gain above the $1,000 starting bankroll, while maximum drawdown measures the largest fall from a previous bankroll peak.
 
 | Strategy | Final bankroll | Session result | Peak bankroll | Maximum run-up | Maximum drawdown |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -155,11 +157,11 @@ Variance describes how much individual results can spread around the average. In
 
 ### Flat 1-Unit Distribution
 
-The chart below is based on 10,000 simulated flat 1-unit sessions over 120 spins, with 1,000 sample paths shown so the graph remains readable. Each session starts with a $1,000 bankroll and uses a fixed $5 bet every spin.
+The chart below is based on 10,000 simulated flat 1-unit sessions over 120 placed bets, with 1,000 sample paths shown so the graph remains readable. Each session starts with a $1,000 bankroll and uses a fixed $5 bet for every betting entry.
 
-<img width="900" alt="Flat 1-unit Monte Carlo bankroll paths over 120 spins" src="outputs/flat_equity_paths.png" />
+<img width="900" alt="Flat 1-unit Monte Carlo bankroll paths over 120 placed bets" src="outputs/flat_equity_paths.png" />
 
-The flat 1-unit paths stay relatively close to the starting bankroll because each bet is small compared with the $1,000 bankroll. In these 120-spin simulations, no flat 1-unit session reaches $0. However, most paths still drift slightly downward because every $5 bet has negative expected value.
+The flat 1-unit paths stay relatively close to the starting bankroll because each bet is small compared with the $1,000 bankroll. In these 120-entry simulations, no flat 1-unit session reaches $0. However, most paths still drift slightly downward because every $5 bet has negative expected value.
 
 The distribution chart records the final bankroll from all 10,000 flat 1-unit sessions.
 
@@ -189,11 +191,11 @@ The histogram also shows that the result of any single session can vary. Althoug
 
 ### Fibonacci Distribution
 
-The Fibonacci system changes this distribution because the bet size increases after losses. To see that effect, the simulation was repeated 10,000 times using the same setup: a $1,000 starting bankroll, $5 units, 120 spins, and Fibonacci bet sizing after losses.
+The Fibonacci system changes this distribution because the bet size increases after losses. First, the simulation tests the base Fibonacci progression with table-limit capped bets, resetting after any win. The separate $500 recovery rule, where the player keeps betting the table maximum until returning to profit, is tested afterward. To see the base Fibonacci effect, the simulation was repeated 10,000 times using the same setup: a $1,000 starting bankroll, $5 units, 120 placed bets, and Fibonacci bet sizing after losses.
 
-The chart below shows 1,000 sample paths from those 10,000 Fibonacci sessions. The green paths finish at or above the starting bankroll, while the red paths finish below it. Compared with flat betting, the Fibonacci paths spread much more widely because the bet size grows after losses.
+The chart below shows 1,000 sample paths from those 10,000 base Fibonacci sessions. The green paths finish at or above the starting bankroll, while the red paths finish below it. Compared with flat betting, the Fibonacci paths spread much more widely because the bet size grows after losses.
 
-<img width="900" alt="Fibonacci Monte Carlo bankroll paths over 120 spins" src="outputs/fibonacci_equity_paths.png" />
+<img width="900" alt="Fibonacci Monte Carlo bankroll paths over 120 placed bets" src="outputs/fibonacci_equity_paths.png" />
 
 The path chart shows the tradeoff visually: many sessions climb above $1,000, but many others fall sharply to $0. The distribution chart below summarizes the final bankroll from all 10,000 Fibonacci sessions.
 
@@ -201,7 +203,7 @@ The path chart shows the tradeoff visually: many sessions climb above $1,000, bu
 
 The Fibonacci distribution shows why one bankroll path is not enough. Many sessions finish above the starting bankroll, but a large group of sessions also reaches $0. In this simulation, the median final bankroll is $1,400, while the mean final bankroll is only about $878. This happens because the losing sessions are severe enough to pull the average below the starting bankroll.
 
-| Outcome after 120 spins | Sessions | Estimated probability |
+| Outcome after 120 placed bets | Sessions | Estimated probability |
 | --- | ---: | ---: |
 | Finished at or above $1,000 | 5,573 / 10,000 | 55.7% |
 | Finished below $1,000 but not ruined | 531 / 10,000 | 5.3% |
@@ -217,13 +219,13 @@ This is the key variance problem with the strategy. Fibonacci betting can create
 
 ### Ruin Probability by Session Length
 
-The 120-spin simulation is useful as a realistic short-session example, but it does not represent what happens if the player keeps using the strategy for longer. As the session length increases, the player has more chances to hit a losing sequence large enough to wipe out the bankroll.
+The 120-entry simulation is useful as a realistic short-session example, but it does not represent what happens if the player keeps using the strategy for longer. As the number of placed bets increases, the player has more chances to hit a losing sequence large enough to wipe out the bankroll.
 
-To test this, I repeated the Fibonacci simulation 10,000 times at different session lengths. The 1,000-spin case is not the true long run, but it acts as a longer-session stress test. The chart compares the base Fibonacci rule with the version that keeps betting up to the $500 table maximum until the bankroll returns to profit.
+To test this, I repeated the Fibonacci simulation 10,000 times at different numbers of placed bets per session. The 1,000-entry case is not the true long run, but it acts as a longer-session stress test. The chart compares the base Fibonacci rule with the version that keeps betting up to the $500 table maximum until the bankroll returns to profit.
 
-<img width="900" alt="Fibonacci ruin probability by session length" src="outputs/fibonacci_ruin_probability_by_session_length.png" />
+<img width="900" alt="Fibonacci ruin probability by placed bets per session" src="outputs/fibonacci_ruin_probability_by_session_length.png" />
 
-| Spins per session | Base Fibonacci reached $0 | With $500 recovery rule reached $0 |
+| Placed bets per session | Base Fibonacci reached $0 | With $500 recovery rule reached $0 |
 | ---: | ---: | ---: |
 | 50 | 1,912 / 10,000 (19.1%) | 1,935 / 10,000 (19.4%) |
 | 120 | 3,896 / 10,000 (39.0%) | 4,189 / 10,000 (41.9%) |
@@ -235,6 +237,6 @@ The ruin probability increases as the session gets longer. The $500 recovery rul
 ## Conclusion
 The simulation results show why the claimed 98% win rate is misleading. The Fibonacci strategy can create many sessions that finish above the starting bankroll, which makes the system look successful in the short term. However, the losing sessions are much larger and often end at $0.
 
-Monte Carlo simulation gives a clearer picture than one selected bankroll path. Over 10,000 simulated 120-spin sessions, the Fibonacci strategy produced many winning sessions, but 39.0% of sessions still reached $0. Adding the $500 recovery rule increased the ruin rate to 41.9%. Longer sessions made the problem worse, with ruin probability rising to 85.9% by 1,000 spins for the base Fibonacci strategy.
+Monte Carlo simulation gives a clearer picture than one selected bankroll path. Over 10,000 simulated 120-entry sessions, the Fibonacci strategy produced many winning sessions, but 39.0% of sessions still reached $0. Adding the $500 recovery rule increased the ruin rate to 41.9%. Longer sessions made the problem worse, with ruin probability rising to 85.9% by 1,000 placed bets for the base Fibonacci strategy.
 
 The strategy does not remove risk; it shifts risk into fewer but much larger losses. That is why a high short-term win rate does not prove the strategy is profitable or safe.

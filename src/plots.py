@@ -98,7 +98,7 @@ def save_fibonacci_final_bankroll_distribution_plot(
         bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "alpha": 0.9},
     )
     ax.set_title(f"Fibonacci Final Bankroll Distribution ({sessions:,} Simulations)")
-    ax.set_xlabel(f"Final bankroll after {spins} spins")
+    ax.set_xlabel(f"Final bankroll after {spins} placed bets")
     ax.set_ylabel("Session count")
     ax.xaxis.set_major_formatter(lambda value, _: f"${value:,.0f}")
     ax.legend(loc="upper left")
@@ -393,7 +393,7 @@ def save_flat_vs_fibonacci_comparison_plot(
         label="Fibonacci max drawdown point",
     )
     ax.set_title("Single $1,000 Bankroll Simulation: Flat vs Fibonacci Betting")
-    ax.set_xlabel("Spin (same outcomes for both paths)")
+    ax.set_xlabel("Betting entry (same outcomes for both paths)")
     ax.set_ylabel("Bankroll ($)")
     ax.legend()
     ax.yaxis.set_major_formatter(lambda value, _: f"${value:,.0f}")
@@ -468,7 +468,7 @@ def save_flat_final_bankroll_distribution_plot(
         bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "alpha": 0.9},
     )
     ax.set_title(f"Flat 1-Unit Final Bankroll Distribution ({sessions:,} Simulations)")
-    ax.set_xlabel(f"Final bankroll after {spins} spins")
+    ax.set_xlabel(f"Final bankroll after {spins} placed bets")
     ax.set_ylabel("Session count")
     ax.xaxis.set_major_formatter(lambda value, _: f"${value:,.0f}")
     ax.legend(loc="upper left")
@@ -607,7 +607,7 @@ def save_equity_paths_plot(
             0,
             1.02,
             (
-                f"Spins per session: {spins}    "
+                f"Placed bets per session: {spins}    "
                 f"Simulations: {sessions:,}    "
                 f"Displayed paths: {len(paths):,}    "
                 f"Median final bankroll: ${median_final:,.0f}    "
@@ -618,7 +618,7 @@ def save_equity_paths_plot(
             color="#9aa0a6",
             fontsize=10,
         )
-        ax.set_xlabel("Spin", color="#d7dde4")
+        ax.set_xlabel("Betting entry", color="#d7dde4")
         ax.set_ylabel("Bankroll ($)", color="#d7dde4")
         ax.yaxis.set_major_formatter(lambda value, _: f"${value:,.0f}")
         ax.tick_params(colors="#9aa0a6")
@@ -704,7 +704,7 @@ def save_fibonacci_ruin_probability_by_session_length_plot(
             )
 
     ax.set_title("Fibonacci Ruin Probability by Session Length")
-    ax.set_xlabel("Spins per session")
+    ax.set_xlabel("Placed bets per session")
     ax.set_ylabel("Estimated probability of reaching $0")
     ax.set_xticks(list(session_lengths))
     ax.set_ylim(0, 0.95)
