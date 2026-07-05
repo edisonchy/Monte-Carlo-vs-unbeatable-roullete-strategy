@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 
 from strategy import COLUMN_WIN_PROBABILITY, RouletteConfig, fibonacci_sequence
+
+
+MONTE_CARLO_RESULTS_PATH = Path("outputs/tables/monte_carlo_results.csv")
 
 
 def simulate_fibonacci_session(
@@ -315,5 +319,6 @@ def run_monte_carlo(
 
 if __name__ == "__main__":
     results_df = run_monte_carlo()
-    results_df.to_csv("outputs/monte_carlo_results.csv", index=False)
+    MONTE_CARLO_RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    results_df.to_csv(MONTE_CARLO_RESULTS_PATH, index=False)
     print(results_df.describe(include="all"))
